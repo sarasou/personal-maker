@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>人格メーカー（AI用プロンプト生成）</title>
+  <meta name="description" content="入力に答えるだけで、ChatGPT/AIに渡せる人格プロンプトを自動生成します。" />
+  <style>
+    :root{
+      --bg:#0b1020; --panel:#111a33; --panel2:#0f1730;
+      --text:#eaf0ff; --muted:#a9b4d6; --line:rgba(255,255,255,.10);
+      --brand:#7c5cff; --brand2:#22d3ee; --ok:#22c55e; --warn:#f59e0b;
+      --shadow: 0 16px 40px rgba(0,0,0,.35);
+      --r:18px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; font-family:var(--sans); color:var(--text);
+      background:
+        radial-gradient(1200px 800px at 10% 10%, rgba(124,92,255,.25), transparent 60%),
+        radial-gradient(900px 700px at 90% 20%, rgba(34,211,238,.18), transparent 55%),
+        radial-gradient(800px 700px at 50% 120%, rgba(34,197,94,.12), transparent 50%),
+        var(--bg);
+      min-height:100vh;
+    }
+    a{color:inherit}
+    .wrap{max-width:1180px; margin:0 auto; padding:28px 18px 56px;}
+    header{
+      display:flex; gap:14px; align-items:flex-start; justify-content:space-between;
+      margin-bottom:16px;
+    }
+    .brand{
+      display:flex; gap:12px; align-items:center;
+    }
+    .logo{
+      width:44px; height:44px; border-radius:14px;
+      background: linear-gradient(135deg, var(--brand), var(--brand2));
+      box-shadow: 0 12px 30px rgba(124,92,255,.25);
+    }
+    h1{margin:0; font-size:22px; letter-spacing:.2px}
+    .sub{margin:6px 0 0; color:var(--muted); font-size:13px; line-height:1.5}
+    .top-actions{
+      display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end;
+    }
+    .pill{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:10px 12px; border:1px solid var(--line); border-radius:999px;
+      background: rgba(255,255,255,.04);
+      color:var(--muted); font-size:12px;
+    }
+    .grid{
+      display:grid; grid-template-columns: 1.05fr .95fr; gap:14px;
+    }
+    @media (max-width: 980px){ .grid{grid-template-columns:1fr; } }
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.03));
+      border:1px solid var(--line);
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .card h2{
+      margin:0; padding:14px 16px;
+      font-size:14px; letter-spacing:.2px;
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border-bottom:1px solid var(--line);
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+    }
+    .card .content{ padding:14px 16px 16px; }
+    .hint{color:var(--muted); font-size:12px; line-height:1.6}
+    .row{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+    @media (max-width: 720px){ .row{grid-template-columns:1fr; } }
+    label{
+      display:block; font-size:12px; color:var(--muted); margin:10px 0 6px;
+    }
+    input, select, textarea{
+      width:100%; padding:11px 12px; border-radius:14px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(12,18,38,.7);
+      color:var(--text);
+      outline:none;
+      transition: .15s border-color, .15s transform, .15s box-shadow;
+    }
+    textarea{min-height:84px; resize:vertical; line-height:1.55}
+    input:focus, select:focus, textarea:focus{
+      border-color: rgba(124,92,255,.65);
+      box-shadow: 0 0 0 4px rgba(124,92,255,.18);
+    }
+    .qbox{padding:10px 12px; border:1px dashed rgba(255,255,255,.14); border-radius:16px; background: rgba(0,0,0,.10);}
+    .mini{font-size:11px; color:var(--muted); margin-top:6px}
+    .actions{
+      display:flex; gap:10px; flex-wrap:wrap;
+      margin-top:12px;
+    }
+    button{
+      cursor:pointer; border:0;
+      padding:11px 12px; border-radius:14px;
+      background: rgba(255,255,255,.08);
+      color:var(--text);
+      border: 1px solid rgba(255,255,255,.12);
+      transition:.15s transform, .15s box-shadow, .15s background;
+    }
+    button:hover{transform: translateY(-1px); background: rgba(255,255,255,.10);}
+    button.primary{
+      background: linear-gradient(135deg, var(--brand), var(--brand2));
+      border: 0;
+      box-shadow: 0 14px 34px rgba(124,92,255,.22);
+    }
+    button.primary:hover{box-shadow: 0 18px 44px rgba(124,92,255,.28);}
+    button.danger{background: rgba(239,68,68,.12); border-color: rgba(239,68,68,.25);}
+    button.ghost{background: transparent;}
+    .toolbar{
+      display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between;
+      padding:12px 16px; border-top:1px solid var(--line);
+      background: rgba(0,0,0,.10);
+    }
+    .status{
+      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+      color:var(--muted); font-size:12px;
+    }
+    .dot{
+      width:8px; height:8px; border-radius:99px; background: rgba(255,255,255,.25);
+    }
+    .dot.ok{background: var(--ok);}
+    .dot.warn{background: var(--warn);}
+    .output{
+      width:100%; min-height: 360px; padding:12px 12px;
+      border-radius: 16px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(6,10,24,.65);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 12.5px;
+      line-height:1.55;
+      white-space: pre-wrap;
+    }
+    .sticky{
+      position:sticky; top:14px;
+    }
+    .kbd{
+      font-family: var(--mono);
+      padding:2px 6px; border-radius:999px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      font-size:11px; color:var(--muted);
+    }
+    .smalllink{
+      text-decoration: underline; text-underline-offset: 3px;
+      color: rgba(234,240,255,.9);
+    }
+    .footer-note{margin-top:10px; color:var(--muted); font-size:12px; line-height:1.6}
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <div>
+          <h1>人格メーカー（AI用プロンプト生成）</h1>
+          <p class="sub">
+            34問に答えるだけで「その人格として振る舞うAI」を作るためのプロンプトが完成します。<br/>
+            入力はブラウザ内に自動保存（localStorage）されます。外部送信はしません。
+          </p>
+        </div>
+      </div>
+
+      <div class="top-actions">
+        <div class="pill"><span class="dot" id="saveDot"></span><span id="saveText">未保存</span></div>
+        <div class="pill">ショートカット: <span class="kbd">Ctrl</span>+<span class="kbd">Enter</span> で生成</div>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- LEFT: FORM -->
+      <section class="card">
+        <h2>
+          <span>入力（人格の設計）</span>
+          <span class="hint">空欄OK。まずは“埋まるところだけ”でOK。</span>
+        </h2>
+        <div class="content" id="formRoot"></div>
+        <div class="toolbar">
+          <div class="status">
+            <span class="dot ok" aria-hidden="true"></span><span>自動保存: ON</span>
+            <span class="dot" aria-hidden="true"></span><span id="filledCount">0</span><span>/34 回答</span>
+          </div>
+          <div class="actions">
+            <button class="primary" id="btnGenerate">プロンプトを生成</button>
+            <button id="btnCopy">コピー</button>
+            <button class="ghost" id="btnExport">JSON書き出し</button>
+            <button class="ghost" id="btnImport">JSON読み込み</button>
+            <button class="danger" id="btnReset">入力をクリア</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT: OUTPUT -->
+      <section class="card sticky">
+        <h2>
+          <span>生成されたプロンプト</span>
+          <span class="hint">ChatGPTの「カスタム指示」やsystemに貼り付け</span>
+        </h2>
+        <div class="content">
+          <textarea class="output" id="output" spellcheck="false" placeholder="左の入力に答えて『プロンプトを生成』を押すと、ここに出ます。"></textarea>
+          <div class="footer-note">
+            noteに載せる場合は、このツールを外部公開（GitHub Pages等）して URL を記事本文に貼り付けるのが確実です（多くのURLはカード化表示）。 :contentReference[oaicite:1]{index=1}
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <p class="footer-note">
+      カスタマイズしたい場合：質問文や項目は、このHTML内の <span class="kbd">QUESTIONS</span> 配列を編集するだけで増減できます。
+    </p>
+  </div>
+
+  <script>
+    // =========================
+    // 質問定義（34問）
+    // =========================
+    const QUESTIONS = [
+      { id:"persona_name",     label:"1) 人格（キャラ）の名前", ph:"例：紗羅 / ARKCIEL店長AI / みよ先生", type:"text" },
+      { id:"role",             label:"2) 役割（職業・立場）", ph:"例：恋愛相談の占い師 / EC物販コンサル / 広告運用の先生", type:"text" },
+      { id:"mission",          label:"3) ミッション（何のための人格？）", ph:"例：悩みに寄り添い、行動を後押しする / 売上を伸ばす施策を提案する", type:"textarea" },
+      { id:"audience",         label:"4) 対象（誰に向けて話す？）", ph:"例：恋愛で不安になりやすい女性 / 物販初心者 / 忙しい主婦", type:"textarea" },
+      { id:"main_problems",    label:"5) 相手が抱えがちな悩み（上位3つ）", ph:"例：自信がない / 他責になりやすい / 駆け引きが苦手", type:"textarea" },
+      { id:"strengths",        label:"6) この人格の強み（得意分野）", ph:"例：心理の言語化 / 数秘・占い / データ分析 / 施策設計", type:"textarea" },
+      { id:"background",       label:"7) 経歴・背景（ストーリー）", ph:"例：占い歴20年。相談件数◯件。現場の言葉で伝えるのが得意。", type:"textarea" },
+      { id:"values",           label:"8) 大切にする価値観", ph:"例：誠実さ / 安心感 / 再現性 / 現実的な一歩", type:"textarea" },
+
+      { id:"tone",             label:"9) 口調（全体の雰囲気）", ph:"例：優しく断定しすぎない、でも背中を押す", type:"textarea" },
+      { id:"politeness",       label:"10) 敬語レベル", type:"select", options:[
+        ["丁寧(です・ます中心)","丁寧(です・ます中心)"],
+        ["フランク(です・ます少なめ)","フランク(です・ます少なめ)"],
+        ["混合（安心感＋親しみ）","混合（安心感＋親しみ）"],
+      ]},
+      { id:"emoji",            label:"11) 絵文字・顔文字", type:"select", options:[
+        ["基本使わない","基本使わない"],
+        ["控えめに使う","控えめに使う"],
+        ["よく使う","よく使う"],
+      ]},
+      { id:"one_word",         label:"12) 口癖・決め台詞（あれば）", ph:"例：『大丈夫、ここから整えられます』", type:"text" },
+      { id:"first_person",     label:"13) 一人称", ph:"例：私 / ぼく / うち", type:"text" },
+      { id:"second_person",    label:"14) 相手の呼び方", ph:"例：あなた / 〇〇さん / みなさん", type:"text" },
+
+      { id:"format",           label:"15) 出力フォーマット（型）", ph:"例：結論→理由→具体例→次の一歩（3ステップ）", type:"textarea" },
+      { id:"question_style",   label:"16) 質問の仕方", type:"select", options:[
+        ["不足があれば最小限だけ確認質問","不足があれば最小限だけ確認質問"],
+        ["基本は質問せず仮説で進める（必要時のみ）","基本は質問せず仮説で進める（必要時のみ）"],
+        ["質問多めで深掘りして進める","質問多めで深掘りして進める"],
+      ]},
+      { id:"length",           label:"17) 文章の長さ", type:"select", options:[
+        ["短め（要点重視）","短め（要点重視）"],
+        ["標準（要点＋少し深掘り）","標準（要点＋少し深掘り）"],
+        ["長め（丁寧に深掘り）","長め（丁寧に深掘り）"],
+      ]},
+      { id:"language",         label:"18) 使用言語", type:"select", options:[
+        ["日本語","日本語"], ["English","English"], ["両方（状況に応じて）","両方（状況に応じて）"],
+      ]},
+
+      { id:"do_list",          label:"19) 必ずやること（Do）", ph:"例：不確かな点は断定しない／具体例を1つ入れる／実行ステップを出す", type:"textarea" },
+      { id:"dont_list",        label:"20) 絶対にしないこと（Don’t）", ph:"例：煽り・脅し／根拠のない断定／個人情報の要求", type:"textarea" },
+      { id:"taboo_words",      label:"21) NGワード・避けたい表現", ph:"例：『絶対』『100%』など断定。特定の宗教や差別表現。", type:"textarea" },
+      { id:"safety",           label:"22) 安全・倫理ルール（任意）", ph:"例：自傷・違法・危険な依頼は断り、代替案を提示する", type:"textarea" },
+
+      { id:"knowledge_scope",  label:"23) 知識範囲（何について強いAI？）", ph:"例：恋愛心理、数秘、LINE導線、EC物販、広告運用、SEO", type:"textarea" },
+      { id:"citations",        label:"24) 出典・根拠の扱い", type:"select", options:[
+        ["必要なときだけ根拠を述べる（リンク不要）","必要なときだけ根拠を述べる（リンク不要）"],
+        ["できる限り根拠を添える","できる限り根拠を添える"],
+        ["雑談寄り（根拠は軽め）","雑談寄り（根拠は軽め）"],
+      ]},
+      { id:"constraints",      label:"25) 制約（文字数・トーン・禁止事項など追加）", ph:"例：最後に必ずCTAを1文／医療・法律は一般論のみ", type:"textarea" },
+      { id:"cta",              label:"26) 最後に入れる誘導文（CTA）", ph:"例：『もっと深く見たい方は公式LINEへ』", type:"textarea" },
+
+      { id:"example_good",     label:"27) 理想の返答例（短くでOK）", ph:"例：『今の状況は◯◯が原因。今日できる一歩はこれ。』", type:"textarea" },
+      { id:"example_bad",      label:"28) こういう返答はNG（短くでOK）", ph:"例：『絶対うまくいく』『運命だから別れなさい』など断定", type:"textarea" },
+
+      { id:"special_rules",    label:"29) 特殊ルール（ある場合）", ph:"例：占い結果は“断定”せず“傾向＋助言”で出す", type:"textarea" },
+      { id:"tools",            label:"30) 使っていい手法（例：Whyを3回、仮説→根拠→再検証）", ph:"例：なぜ？を3回、具体と抽象を往復、例え話1つ", type:"textarea" },
+
+      { id:"brand_style",      label:"31) ブランド/世界観（色・空気感）", ph:"例：癒し×現実的。やさしいけど芯が強い。", type:"textarea" },
+      { id:"keywords",         label:"32) 頻出キーワード（SEO/キャラ固定）", ph:"例：安心、整える、現実的、行動、再現性", type:"textarea" },
+      { id:"memory",           label:"33) 固定で覚えておきたい前提（プロフィール等）", ph:"例：年齢設定、活動歴、扱うテーマ、NGテーマ", type:"textarea" },
+      { id:"extra",            label:"34) その他（自由欄）", ph:"追記があれば何でも", type:"textarea" },
+    ];
+
+    // =========================
+    // 保存/読み込み
+    // =========================
+    const STORAGE_KEY = "persona_maker_v1";
+    const $ = (sel) => document.querySelector(sel);
+
+    function loadState(){
+      try{
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : {};
+      }catch(e){ return {}; }
+    }
+    function saveState(state){
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      setSaved(true);
+      updateFilledCount();
+    }
+
+    let savedRecentlyTimer = null;
+    function setSaved(ok){
+      const dot = $("#saveDot");
+      const txt = $("#saveText");
+      if(ok){
+        dot.classList.add("ok");
+        txt.textContent = "保存済み";
+        clearTimeout(savedRecentlyTimer);
+        savedRecentlyTimer = setTimeout(()=>{ dot.classList.remove("ok"); txt.textContent="自動保存中"; }, 1200);
+      }else{
+        dot.classList.remove("ok");
+        txt.textContent = "未保存";
+      }
+    }
+
+    // =========================
+    // UI生成
+    // =========================
+    const state = loadState();
+
+    function renderForm(){
+      const root = $("#formRoot");
+      root.innerHTML = "";
+
+      // ざっくり見やすく：前半は2列、後半は1列に混ぜる
+      const topWrap = document.createElement("div");
+      topWrap.className = "row";
+      const left = document.createElement("div");
+      const right = document.createElement("div");
+      topWrap.append(left, right);
+
+      const rest = document.createElement("div");
+
+      QUESTIONS.forEach((q, idx) => {
+        const box = document.createElement("div");
+        box.className = "qbox";
+        const lab = document.createElement("label");
+        lab.setAttribute("for", q.id);
+        lab.textContent = q.label;
+
+        let input;
+        if(q.type === "select"){
+          input = document.createElement("select");
+          input.id = q.id;
+          (q.options || []).forEach(([value, label]) => {
+            const opt = document.createElement("option");
+            opt.value = value; opt.textContent = label;
+            input.appendChild(opt);
+          });
+        }else if(q.type === "textarea"){
+          input = document.createElement("textarea");
+          input.id = q.id;
+          input.placeholder = q.ph || "";
+        }else{
+          input = document.createElement("input");
+          input.id = q.id;
+          input.type = "text";
+          input.placeholder = q.ph || "";
+        }
+
+        input.value = (state[q.id] ?? "");
+        input.addEventListener("input", () => {
+          state[q.id] = input.value;
+          saveState(state);
+        });
+
+        box.append(lab, input);
+        if(q.ph){
+          const mini = document.createElement("div");
+          mini.className = "mini";
+          mini.textContent = "例：" + q.ph.replace(/^例：/,"");
+          box.appendChild(mini);
+        }
+
+        // 配置ルール：最初の12問くらいを2列に
+        if(idx < 12){
+          (idx % 2 === 0 ? left : right).appendChild(box);
+        }else{
+          rest.appendChild(box);
+        }
+      });
+
+      root.appendChild(topWrap);
+      root.appendChild(rest);
+      updateFilledCount();
+    }
+
+    function updateFilledCount(){
+      const n = QUESTIONS.reduce((acc, q) => acc + (!!(state[q.id] && String(state[q.id]).trim()) ? 1 : 0), 0);
+      $("#filledCount").textContent = String(n);
+    }
+
+    // =========================
+    // プロンプト生成
+    // =========================
+    function clean(v){ return (v ?? "").toString().trim(); }
+    function bulletize(text){
+      const t = clean(text);
+      if(!t) return "";
+      // 既に改行があればそのまま。なければ読点/スラッシュで分割も軽く。
+      const lines = t.includes("\n") ? t.split("\n") : t.split(/[/、,]/);
+      const items = lines.map(s=>s.trim()).filter(Boolean);
+      return items.map(s=>`- ${s}`).join("\n");
+    }
+
+    function buildPrompt(){
+      const v = (id)=> clean(state[id]);
+
+      const personaName = v("persona_name") || "（未設定の人格）";
+      const role = v("role");
+      const mission = v("mission");
+      const audience = v("audience");
+      const problems = v("main_problems");
+      const strengths = v("strengths");
+      const background = v("background");
+      const values = v("values");
+
+      const tone = v("tone");
+      const politeness = v("politeness");
+      const emoji = v("emoji");
+      const oneWord = v("one_word");
+      const first = v("first_person");
+      const second = v("second_person");
+
+      const format = v("format");
+      const qstyle = v("question_style");
+      const length = v("length");
+      const language = v("language");
+
+      const doList = v("do_list");
+      const dontList = v("dont_list");
+      const taboo = v("taboo_words");
+      const safety = v("safety");
+
+      const knowledge = v("knowledge_scope");
+      const citations = v("citations");
+      const constraints = v("constraints");
+      const cta = v("cta");
+
+      const exGood = v("example_good");
+      const exBad = v("example_bad");
+
+      const special = v("special_rules");
+      const tools = v("tools");
+      const brand = v("brand_style");
+      const keywords = v("keywords");
+      const memory = v("memory");
+      const extra = v("extra");
+
+      const parts = [];
+
+      parts.push(
+`# SYSTEM（このまま貼り付けOK）
+あなたは「${personaName}」として振る舞うAIです。`
+      );
+
+      if(role) parts.push(`## 役割\n${role}`);
+      if(mission) parts.push(`## ミッション\n${mission}`);
+      if(audience) parts.push(`## 対象\n${audience}`);
+      if(problems) parts.push(`## 相手が抱えがちな悩み\n${bulletize(problems) || problems}`);
+      if(strengths) parts.push(`## 強み（得意分野）\n${bulletize(strengths) || strengths}`);
+      if(background) parts.push(`## 背景（設定）\n${background}`);
+      if(values) parts.push(`## 価値観\n${bulletize(values) || values}`);
+
+      parts.push(`## 話し方・スタイル
+- 口調: ${tone || "（未指定：落ち着いた丁寧め）"}
+- 敬語: ${politeness || "丁寧(です・ます中心)"}
+- 絵文字: ${emoji || "控えめに使う"}
+- 一人称/二人称: ${first||"私"} / ${second||"あなた"}
+${oneWord ? `- 口癖: ${oneWord}` : ""}`.trim());
+
+      parts.push(`## 出力の型（フォーマット）
+${format || "結論 → 理由 → 具体例 → 次の一歩（3ステップ）"}`);
+
+      parts.push(`## 進め方（不足情報の扱い）
+- 方針: ${qstyle || "不足があれば最小限だけ確認質問"}
+- 長さ: ${length || "標準（要点＋少し深掘り）"}
+- 言語: ${language || "日本語"}`);
+
+      if(knowledge) parts.push(`## 知識範囲\n${knowledge}`);
+      if(tools) parts.push(`## 使う手法\n${bulletize(tools) || tools}`);
+      if(special) parts.push(`## 特殊ルール\n${special}`);
+
+      parts.push(`## 品質ルール（Do）
+${doList ? bulletize(doList) : "- 不確かな点は断定しない\n- 例を1つ入れて具体化する\n- 実行ステップを提示する"}`);
+
+      parts.push(`## 禁止ルール（Don’t）
+${dontList ? bulletize(dontList) : "- 根拠のない断定\n- 恐怖で煽る言い方\n- 個人情報の過剰要求"}`);
+
+      if(taboo) parts.push(`## NGワード・避けたい表現\n${bulletize(taboo) || taboo}`);
+      if(safety) parts.push(`## 安全・倫理\n${safety}`);
+
+      parts.push(`## 根拠・出典の扱い
+- 方針: ${citations || "必要なときだけ根拠を述べる（リンク不要）"}`);
+
+      if(brand) parts.push(`## 世界観\n${brand}`);
+      if(keywords) parts.push(`## 頻出キーワード\n${bulletize(keywords) || keywords}`);
+      if(memory) parts.push(`## 固定前提（プロフィール等）\n${memory}`);
+      if(constraints) parts.push(`## 追加制約\n${constraints}`);
+
+      if(exGood) parts.push(`## 理想の返答例\n${exGood}`);
+      if(exBad) parts.push(`## NG返答例\n${exBad}`);
+
+      if(cta) parts.push(`## 最後の一文（CTA）
+- 返答の末尾に、自然な流れで次の一文を添える：\n${cta}`);
+
+      if(extra) parts.push(`## その他\n${extra}`);
+
+      parts.push(
+`# USERへの入力
+ユーザーのメッセージ（相談内容・質問）に対して、上記ルールに沿って回答してください。`
+      );
+
+      return parts.filter(Boolean).join("\n\n").trim() + "\n";
+    }
+
+    // =========================
+    // Buttons
+    // =========================
+    function setOutput(text){ $("#output").value = text; }
+
+    $("#btnGenerate").addEventListener("click", () => {
+      setOutput(buildPrompt());
+    });
+
+    $("#btnCopy").addEventListener("click", async () => {
+      const text = $("#output").value.trim();
+      if(!text){
+        setOutput(buildPrompt());
+      }
+      try{
+        await navigator.clipboard.writeText($("#output").value);
+        $("#btnCopy").textContent = "コピーしました！";
+        setTimeout(()=> $("#btnCopy").textContent="コピー", 1100);
+      }catch(e){
+        alert("コピーに失敗しました。手動で選択してコピーしてください。");
+      }
+    });
+
+    $("#btnReset").addEventListener("click", () => {
+      if(!confirm("入力をすべてクリアします。よろしいですか？")) return;
+      for(const q of QUESTIONS) delete state[q.id];
+      localStorage.removeItem(STORAGE_KEY);
+      setSaved(false);
+      renderForm();
+      setOutput("");
+    });
+
+    $("#btnExport").addEventListener("click", () => {
+      const blob = new Blob([JSON.stringify(state, null, 2)], {type:"application/json"});
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "persona-maker.json";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+
+    $("#btnImport").addEventListener("click", () => {
+      const inp = document.createElement("input");
+      inp.type = "file";
+      inp.accept = "application/json";
+      inp.onchange = async () => {
+        const file = inp.files?.[0];
+        if(!file) return;
+        try{
+          const json = JSON.parse(await file.text());
+          for(const q of QUESTIONS){
+            if(json[q.id] !== undefined) state[q.id] = String(json[q.id]);
+          }
+          saveState(state);
+          renderForm();
+        }catch(e){
+          alert("JSONが読み込めませんでした。");
+        }
+      };
+      inp.click();
+    });
+
+    // Ctrl+Enter で生成
+    window.addEventListener("keydown", (e) => {
+      const isCmdEnter = (e.ctrlKey || e.metaKey) && e.key === "Enter";
+      if(isCmdEnter){
+        e.preventDefault();
+        setOutput(buildPrompt());
+      }
+    });
+
+    // 初期描画
+    renderForm();
+    if(Object.keys(state).length){
+      setSaved(true);
+      updateFilledCount();
+    }else{
+      setSaved(false);
+    }
+  </script>
+</body>
+</html>
