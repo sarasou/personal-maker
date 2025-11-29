@@ -206,8 +206,7 @@
         <div class="content">
           <textarea class="output" id="output" spellcheck="false" placeholder="左の入力に答えて『プロンプトを生成』を押すと、ここに出ます。"></textarea>
           <div class="footer-note">
-            noteに載せる場合は、このツールを外部公開（GitHub Pages等）して URL を記事本文に貼り付けるのが確実です（多くのURLはカード化表示）。 :contentReference[oaicite:1]{index=1}
-          </div>
+            noteに載せる場合は、このツールを外部公開（GitHub Pages等）して URL を記事本文に貼り付けるのが確実です（多くのURLはカード化表示）。 
         </div>
       </section>
     </div>
